@@ -1,0 +1,14 @@
+[package]
+name = "rustylines"
+version = "0.1.0"
+edition = "2021" 
+authors = ["HakeemsGit https://github.com/HakeemsGit"]
+build = "build.rs"
+
+[dependencies]
+lazy_static = "1.4.0"
+clap = "3.2"
+crossterm = "0.25"
+tui = "0.19"
+git2 = "0.18"
+thiserror = "1.0"
