@@ -7,6 +7,7 @@ mod cmd;
 mod git;
 mod languages;
 mod tui;
+mod themes;
 
 #[derive(Debug, Clone, Default)]
 pub struct ContributorInfo {
@@ -27,7 +28,8 @@ pub struct Stats {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    cmd::execute()
+    let theme = themes::Theme::Zinc; // Or themes::Theme::Rust;
+    cmd::execute(theme)
 }
 
 pub fn get_stats(path: &str) -> Result<Stats, Box<dyn Error>> {

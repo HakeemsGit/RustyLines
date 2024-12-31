@@ -14,22 +14,23 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{ContributorInfo, LanguageInfo, Stats};
+use crate::{ContributorInfo, LanguageInfo, Stats, themes::{Theme, ThemeStyle}};
 
-// Define color constants for consistent styling
-const TITLE_COLOR: Color = Color::Rgb(183, 65, 14);
-const BORDER_COLOR: Color = Color::Rgb(139, 69, 19);
-const TEXT_COLOR: Color = Color::Rgb(255, 160, 122);
 const ERROR_COLOR: Color = Color::Red;
+const BORDER_COLOR: Color = Color::DarkGray;
+const TEXT_COLOR: Color = Color::White;
+const TITLE_COLOR: Color = Color::Yellow;
 
-pub fn run(stats: Stats) -> Result<(), Box<dyn Error>> {
+pub fn run(stats: Stats, theme: Theme) -> Result<(), Box<dyn Error>> {
+    let theme_style = theme.style();
+
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app = App::new(stats);
+    let app = App::new(stats, theme_style);
 
     let res = run_app(&mut terminal, app);
 
@@ -56,10 +57,11 @@ struct App {
     contrib_state: TableState,
     focus_on_lang: bool,
     view_mode: bool,
+    theme_style: ThemeStyle,
 }
 
 impl App {
-    fn new(stats: Stats) -> App {
+    fn new(stats: Stats, theme_style: ThemeStyle) -> App {
         let mut language_table: Vec<_> = stats.languages.into_iter().collect();
         language_table.sort_by(|a, b| b.1.lines.cmp(&a.1.lines));
 
@@ -73,6 +75,7 @@ impl App {
             contrib_state: TableState::default(),
             focus_on_lang: true,
             view_mode: false,
+            theme_style,
         }
     }
 
@@ -224,20 +227,20 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             )
             .split(size);
 
-        render_title(f, chunks[0]);
+        render_title(f, chunks[0], &app.theme_style);
         render_tables(f, chunks[1], app);
-        render_help(f, chunks[2]);
+        render_help(f, chunks[2], &app.theme_style);
     }
 }
 
-fn render_title<B: Backend>(f: &mut Frame<B>, area: Rect) {
+fn render_title<B: Backend>(f: &mut Frame<B>, area: Rect, theme_style: &ThemeStyle) {
     let title = Paragraph::new("RustyLines - Where Every Line Counts")
-        .style(Style::default().fg(TITLE_COLOR).add_modifier(Modifier::BOLD))
+        .style(Style::default().fg(theme_style.title_color).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(BORDER_COLOR)),
+                .border_style(Style::default().fg(theme_style.border_color)),
         );
     f.render_widget(title, area);
 }
@@ -254,7 +257,7 @@ fn render_tables<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App) {
 
 fn render_language_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App) {
     let header_style = Style::default()
-        .fg(TITLE_COLOR)
+        .fg(app.theme_style.title_color)
         .add_modifier(Modifier::BOLD);
 
     let header_cells = ["Languages", "Lines", "Files"]
@@ -274,7 +277,7 @@ fn render_language_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App
         if app.focus_on_lang && Some(i) == app.lang_state.selected() && !app.view_mode {
             row = row.style(
                 Style::default()
-                    .bg(Color::Rgb(205, 92, 92))
+                    .bg(app.theme_style.selected_bg_color)
                     .add_modifier(Modifier::BOLD),
             );
         }
@@ -284,7 +287,7 @@ fn render_language_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App
     let table_block = Block::default()
         .title("File Info")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER_COLOR));
+        .border_style(Style::default().fg(app.theme_style.border_color));
 
     let table = Table::new(rows)
         .header(table_header)
@@ -295,7 +298,7 @@ fn render_language_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App
             Constraint::Percentage(25),
         ])
         .column_spacing(1)
-        .style(Style::default().fg(TEXT_COLOR))
+        .style(Style::default().fg(app.theme_style.text_color))
         .highlight_symbol(if app.view_mode { "" } else { ">> " });
 
     f.render_stateful_widget(table, area, &mut app.lang_state);
@@ -303,7 +306,7 @@ fn render_language_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App
 
 fn render_contributor_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut App) {
     let header_style = Style::default()
-        .fg(TITLE_COLOR)
+        .fg(app.theme_style.title_color)
         .add_modifier(Modifier::BOLD);
 
     let header_cells = ["Developers", "Lines", "Files"]
@@ -327,7 +330,7 @@ fn render_contributor_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut 
             if !app.focus_on_lang && Some(i) == app.contrib_state.selected() && !app.view_mode {
                 row = row.style(
                     Style::default()
-                        .bg(Color::Rgb(205, 92, 92))
+                        .bg(app.theme_style.selected_bg_color)
                         .add_modifier(Modifier::BOLD),
                 );
             }
@@ -337,7 +340,7 @@ fn render_contributor_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut 
     let table_block = Block::default()
         .title("Contributors")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER_COLOR));
+        .border_style(Style::default().fg(app.theme_style.border_color));
 
     let table = Table::new(rows)
         .header(table_header)
@@ -348,43 +351,43 @@ fn render_contributor_table<B: Backend>(f: &mut Frame<B>, area: Rect, app: &mut 
             Constraint::Percentage(25),
         ])
         .column_spacing(1)
-        .style(Style::default().fg(TEXT_COLOR))
+        .style(Style::default().fg(app.theme_style.text_color))
         .highlight_symbol(if app.view_mode { "" } else { ">> " });
 
     f.render_stateful_widget(table, area, &mut app.contrib_state);
 }
 
-fn render_help<B: Backend>(f: &mut Frame<B>, area: Rect) {
+fn render_help<B: Backend>(f: &mut Frame<B>, area: Rect, theme_style: &ThemeStyle) {
     let help_text = Spans::from(vec![
-        Span::styled("Use ", Style::default().fg(TEXT_COLOR)),
+        Span::styled("Use ", Style::default().fg(theme_style.text_color)),
         Span::styled(
             "Up/Down",
             Style::default()
-                .fg(TITLE_COLOR)
+                .fg(theme_style.title_color)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" arrows to navigate, ", Style::default().fg(TEXT_COLOR)),
+        Span::styled(" arrows to navigate, ", Style::default().fg(theme_style.text_color)),
         Span::styled(
             "Tab",
             Style::default()
-                .fg(TITLE_COLOR)
+                .fg(theme_style.title_color)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" to switch tables, ", Style::default().fg(TEXT_COLOR)),
+        Span::styled(" to switch tables, ", Style::default().fg(theme_style.text_color)),
         Span::styled(
             "'v'",
             Style::default()
-                .fg(TITLE_COLOR)
+                .fg(theme_style.title_color)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" to view, ", Style::default().fg(TEXT_COLOR)),
+        Span::styled(" to view, ", Style::default().fg(theme_style.text_color)),
         Span::styled(
             "'q'",
             Style::default()
-                .fg(TITLE_COLOR)
+                .fg(theme_style.title_color)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" to quit", Style::default().fg(TEXT_COLOR)),
+        Span::styled(" to quit", Style::default().fg(theme_style.text_color)),
     ]);
 
     let help = Paragraph::new(help_text)
@@ -392,7 +395,7 @@ fn render_help<B: Backend>(f: &mut Frame<B>, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(BORDER_COLOR)),
+                .border_style(Style::default().fg(theme_style.border_color)),
         );
     f.render_widget(help, area);
 }
@@ -443,12 +446,12 @@ fn render_detailed_view<B: Backend>(f: &mut Frame<B>, area: Rect, app: &App) {
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER_COLOR));
+        .border_style(Style::default().fg(app.theme_style.border_color));
 
     let paragraph = Paragraph::new(content)
         .alignment(Alignment::Left)
         .block(block)
-        .style(Style::default().fg(TEXT_COLOR));
+        .style(Style::default().fg(app.theme_style.text_color));
 
     f.render_widget(paragraph, area);
 }
