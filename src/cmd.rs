@@ -1,8 +1,8 @@
 use std::error::Error;
 use clap::{App, Arg};
-use crate::{get_stats, tui};
+use crate::{get_stats, tui, themes::Theme};
 
-pub fn execute() -> Result<(), Box<dyn Error>> {
+pub fn execute(theme: Theme) -> Result<(), Box<dyn Error>> {
     let matches = App::new("RustyLines")
         .version("1.0")
         .author("HakeemsGit")
@@ -20,5 +20,5 @@ pub fn execute() -> Result<(), Box<dyn Error>> {
         .ok_or("Path argument is required")?;
 
     let stats = get_stats(path)?;
-    tui::run(stats)
+    tui::run(stats, theme)
 }
